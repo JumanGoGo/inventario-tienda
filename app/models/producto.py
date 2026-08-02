@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, func
+from sqlalchemy.orm import relationship
 
 from app.database.db import Base
 
@@ -15,11 +16,13 @@ class Producto(Base):
     stock_actual = Column(Integer, nullable=False, default=0)
     stock_minimo = Column(Integer, nullable=False, default=0)
 
-    # categoria_id / proveedor_id se agregan como FK reales en la Parte 2,
-    # cuando se implementen las tablas Categoria y Proveedor.
-    categoria_id = Column(Integer, nullable=True)
+    categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=True, index=True)
+
+    # proveedor_id se agrega como FK real cuando se implemente la tabla Proveedor.
     proveedor_id = Column(Integer, nullable=True)
 
     activo = Column(Boolean, default=True, nullable=False)
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
     fecha_actualizacion = Column(DateTime(timezone=True), onupdate=func.now())
+
+    categoria = relationship("Categoria", backref="productos")

@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import settings
 from app.database.db import Base
-from app.models import producto, movimiento  # noqa: F401  (registra los modelos en Base.metadata)
+from app.models import categoria, producto, movimiento  # noqa: F401  (registra los modelos en Base.metadata)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
