@@ -140,6 +140,3 @@ lista para importar:
 Para reproducir: `docker compose up --build` con base de datos limpia, luego
 importar la colección en Postman y ejecutarla con `base_url = http://localhost:8000`.
 
-## Video de demostración
-
-*[completar con el enlace de Google Drive después de subir el video]*
