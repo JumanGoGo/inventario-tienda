@@ -75,3 +75,17 @@ def test_eliminar_movimiento_revierte_stock(client):
 
     producto_actualizado = client.get(f"/api/productos/{producto['id']}").json()
     assert producto_actualizado["stock_actual"] == 0
+
+
+def test_eliminar_entrada_antigua_rechaza_si_deja_stock_negativo(client):
+    producto = crear_producto(client)
+    entrada = client.post(
+        "/api/movimientos", json={"producto_id": producto["id"], "tipo": "entrada", "cantidad": 30}
+    ).json()
+    client.post("/api/movimientos", json={"producto_id": producto["id"], "tipo": "salida", "cantidad": 25})
+
+    response = client.delete(f"/api/movimientos/{entrada['id']}")
+    assert response.status_code == 400
+
+    producto_actualizado = client.get(f"/api/productos/{producto['id']}").json()
+    assert producto_actualizado["stock_actual"] == 5

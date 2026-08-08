@@ -28,6 +28,31 @@ http://localhost:8000/docs
 
 Al iniciar, el contenedor `api` ejecuta automáticamente `alembic upgrade head` antes de levantar el servidor, por lo que las tablas se crean solas (no requiere pasos manuales de migración).
 
+## Estructura del proyecto
+
+```
+app/
+  main.py            # Instancia FastAPI, registro de routers y manejo global de errores
+  config.py          # Carga de variables de entorno (.env)
+  database/db.py     # Engine, sesión y Base declarativa de SQLAlchemy
+  models/            # Modelos SQLAlchemy (tablas): categoria, producto, movimiento
+  schemas/           # Esquemas Pydantic (validación de entrada/salida)
+  routers/           # Endpoints agrupados por entidad
+alembic/             # Migraciones de base de datos
+tests/               # Tests con pytest
+scripts/             # Utilidades de desarrollo (ej. generador de la colección Postman)
+```
+
+## Variables de entorno
+
+Copiar `.env.example` a `.env` y ajustar si es necesario:
+
+| Variable | Descripción |
+|---|---|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Credenciales del contenedor de PostgreSQL |
+| `DATABASE_URL` | Cadena de conexión usada por la API (debe apuntar al host `db`, el nombre del servicio en `docker-compose.yml`) |
+| `APP_NAME` / `APP_ENV` | Metadatos de la aplicación |
+
 ## Entidades implementadas
 
 - **Categoría**: CRUD completo (crear, listar con filtros, obtener, actualizar, eliminar-lógica).
@@ -45,6 +70,7 @@ Proveedor, Usuario (autenticación) y Alerta quedan fuera de alcance de esta ent
 - **No se puede desactivar/eliminar una categoría si tiene productos activos asociados** (`DELETE /api/categorias/{id}` responde `409 Conflict`). Evita dejar productos huérfanos de clasificación.
 - **No se puede asignar un producto a una categoría inactiva** (`400 Bad Request` al crear/actualizar el producto).
 - **No se permite un movimiento de `salida` mayor al stock disponible**, ni un `ajuste` que deje el stock en negativo (`400 Bad Request`).
+- **No se puede eliminar un movimiento si revertir su efecto deja el stock en negativo** (`400 Bad Request`). Cubre el caso de eliminar un movimiento antiguo cuyo efecto ya fue consumido por movimientos posteriores.
 - **El SKU de un producto y el nombre de una categoría son únicos** (`409 Conflict` ante duplicados).
 
 ## Filtros y búsqueda
@@ -63,39 +89,6 @@ Todas las respuestas de error usan el mismo formato JSON `{"detail": "..."}`:
 - `409` — conflicto de integridad (duplicados, o intento de romper una regla de negocio referencial).
 - `422` — error de validación de esquema (Pydantic), generado automáticamente por FastAPI.
 - `500` — error no controlado; se captura con un handler global que responde JSON en vez de texto plano, sin filtrar detalles internos.
-
-## Variables de entorno
-
-Copiar `.env.example` a `.env` y ajustar si es necesario:
-
-| Variable | Descripción |
-|---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Credenciales del contenedor de PostgreSQL |
-| `DATABASE_URL` | Cadena de conexión usada por la API (debe apuntar al host `db`, el nombre del servicio en `docker-compose.yml`) |
-| `APP_NAME` / `APP_ENV` | Metadatos de la aplicación |
-
-## Tests
-
-```bash
-pip install -r requirements.txt
-pytest
-```
-
-Los tests usan una base de datos SQLite en memoria, por lo que no requieren Docker ni PostgreSQL.
-
-## Estructura del proyecto
-
-```
-app/
-  main.py            # Instancia FastAPI, registro de routers y manejo global de errores
-  config.py          # Carga de variables de entorno (.env)
-  database/db.py     # Engine, sesión y Base declarativa de SQLAlchemy
-  models/            # Modelos SQLAlchemy (tablas): categoria, producto, movimiento
-  schemas/           # Esquemas Pydantic (validación de entrada/salida)
-  routers/           # Endpoints agrupados por entidad
-alembic/             # Migraciones de base de datos
-tests/               # Tests con pytest
-```
 
 ## Endpoints principales
 
@@ -119,3 +112,34 @@ tests/               # Tests con pytest
 | DELETE | `/api/movimientos/{id}` | Eliminar movimiento (revierte su efecto sobre el stock) |
 
 Lista completa y probada en vivo en `/docs`.
+
+## Tests automatizados
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
+Los tests usan una base de datos SQLite en memoria, por lo que no requieren Docker ni PostgreSQL.
+Estado actual: **26/26 tests pasando**.
+
+## Pruebas manuales (Parte 3)
+
+Además de los tests automatizados, el proyecto incluye una colección Postman
+lista para importar:
+
+- [`postman_collection.json`](postman_collection.json) — 39 requests (casos
+  válidos y de error) sobre las 3 entidades, organizados en 4 carpetas que se
+  ejecutan en secuencia (**Run collection**). Cada request incluye aserciones
+  automáticas de código de estado y, en varios casos, del cuerpo de la respuesta.
+- [`CASOS_DE_PRUEBA.md`](CASOS_DE_PRUEBA.md) — tabla con la descripción de
+  cada caso, el resultado esperado y el resultado obtenido, más el detalle de
+  un bug encontrado y corregido durante esta fase (reversión de stock al
+  eliminar movimientos antiguos).
+
+Para reproducir: `docker compose up --build` con base de datos limpia, luego
+importar la colección en Postman y ejecutarla con `base_url = http://localhost:8000`.
+
+## Video de demostración
+
+*[completar con el enlace de Google Drive después de subir el video]*

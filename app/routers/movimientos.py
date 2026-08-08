@@ -104,11 +104,21 @@ def eliminar_movimiento(movimiento_id: int, db: Session = Depends(get_db)):
     producto = db.get(Producto, movimiento.producto_id)
     if producto:
         if movimiento.tipo == TipoMovimiento.entrada.value:
-            producto.stock_actual -= movimiento.cantidad
+            stock_revertido = producto.stock_actual - movimiento.cantidad
         elif movimiento.tipo == TipoMovimiento.salida.value:
-            producto.stock_actual += movimiento.cantidad
+            stock_revertido = producto.stock_actual + movimiento.cantidad
         else:  # ajuste
-            producto.stock_actual -= movimiento.cantidad
+            stock_revertido = producto.stock_actual - movimiento.cantidad
+
+        # Si entre este movimiento y ahora ya se consumio ese stock con
+        # movimientos posteriores, revertirlo dejaria el inventario en
+        # negativo: se bloquea para no romper la consistencia del stock.
+        if stock_revertido < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede eliminar el movimiento: revertirlo dejaria el stock en negativo",
+            )
+        producto.stock_actual = stock_revertido
 
     db.delete(movimiento)
     db.commit()
